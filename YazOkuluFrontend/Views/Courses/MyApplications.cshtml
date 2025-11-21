@@ -1,0 +1,102 @@
+﻿@using YazOkuluFrontend.Models.Response
+@model List<ApplicationListItem>
+
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+<div x-data="myApplicationsApp()" x-init="init()" class="p-6">
+
+    <h2 class="text-2xl font-semibold mb-4 flex items-center space-x-2">
+        <i class="bi bi-journal-check text-gray-600 text-2xl"></i>
+        <span>Başvurularım</span>
+    </h2>
+
+    <div class="overflow-x-auto">
+        <table class="min-w-full bg-white shadow rounded-lg">
+            <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="px-4 py-2">Ders Kodu</th>
+                    <th class="px-4 py-2">Ders Adı</th>
+                    <th class="px-4 py-2">Durum</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <template x-for="app in applications" :key="app.applicationID">
+                    <tr>
+                        <td class="px-4 py-2" x-text="app.courseCode"></td>
+                        <td class="px-4 py-2" x-text="app.courseName"></td>
+                        <td class="px-4 py-2 flex items-center space-x-2">
+                            <span x-text="app.status"></span>
+                            <template x-if="app.statusID === 18">
+                                <i class="bi bi-question-circle text-yellow-500" title="Onay bekliyor"></i>
+                            </template>
+                            <template x-if="app.statusID === 19">
+                                <i class="bi bi-check-circle text-green-600" title="Onaylandı"></i>
+                            </template>
+                            <template x-if="app.statusID === 20">
+                                <i class="bi bi-x-circle text-red-600" title="Reddedildi"></i>
+                            </template>
+                            <template x-if="app.statusID === 22">
+                                <i class="bi bi-exclamation-circle text-gray-500" title="Kontenjan dolu"></i>
+                            </template>
+                        </td>
+                    </tr>
+                </template>
+                <tr x-show="applications.length === 0">
+                    <td colspan="3" class="px-4 py-2 text-center text-gray-500">Henüz başvurunuz yok.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function myApplicationsApp() {
+        return {
+            applications: [],
+            userId: null,
+
+            init() {
+                this.loadUserIdFromToken();
+                if (this.userId) this.fetchApplications();
+            },
+
+            loadUserIdFromToken() {
+                const token = localStorage.getItem("Token");
+                if (!token) return;
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    this.userId = parseInt(payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]);
+                } catch (e) {
+                    this.userId = null;
+                }
+            },
+
+            fetchApplications() {
+                const token = localStorage.getItem("Token");
+                if (!token) return;
+
+               
+                const requestBody = {
+                    userID: this.userId
+                };
+
+                fetch(`http://localhost:5273/api/me/applications?UserID=${this.userId}`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    
+                    this.applications = data.resultObject?.searchResult || [];
+                })
+                .catch(err => {
+                    console.error("Başvurular alınamadı:", err);
+                });
+            }
+        }
+    }
+</script>

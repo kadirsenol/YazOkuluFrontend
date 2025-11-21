@@ -1,0 +1,70 @@
+﻿@using YazOkuluFrontend.Models.DTO
+@model AdminLoginDto
+@{
+    ViewData["Title"] = "Admin Giriş";
+}
+
+<div class="max-w-md mx-auto bg-white p-8 shadow rounded-lg mt-40">
+    <h2 class="text-2xl font-semibold mb-6 text-center">Admin Giriş</h2>
+
+    <form id="loginForm" class="space-y-4">
+        <div>
+            <label class="block text-gray-700 mb-1">Kullanıcı Adı</label>
+            <input asp-for="UserName" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        </div>
+        <div>
+            <label class="block text-gray-700 mb-1">Şifre</label>
+            <input asp-for="Password" type="password" class="w-full border border-gray-300 rounded px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500" required />
+        </div>
+        <button type="submit" class="w-full bg-green-600 text-white py-2 rounded hover:bg-green-700 transition">Giriş</button>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById("loginForm").addEventListener("submit", async function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const data = {
+                userName: form.elements["UserName"].value.trim(),
+                password: form.elements["Password"].value.trim()
+            };
+
+            if (!data.userName || !data.password) {
+                showToast("Kullanıcı adı ve şifre boş olamaz.", "error");
+                return;
+            }
+
+            try {
+                const response = await fetch("http://localhost:5273/api/auth/admin-login", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(data)
+                });
+
+                if (!response.ok) {
+                    showToast("Sağlayıcı tarafında bir problem meydana geldi.", "error");
+                    return;
+                }
+
+                let result = await response.json();
+
+                if (!result.isSuccess) {
+                    showToast(result.message || "Kullanıcı adı veya şifre yanlışasd.", "error");
+                    return;
+                }
+
+                localStorage.setItem("Token", result.resultObject.token);
+                document.cookie = `Token=${result.resultObject.token}; path=/;`;//role kontrolu icin ekledim
+
+                showToast("Giriş başarılı!", "success");
+                setTimeout(() => window.location.href = "/", 500);
+
+            } catch (err) {
+                console.error(err);
+                showToast("Beklenmedik bir hata oluştu.", "error");
+            }
+        });
+    </script>
+}

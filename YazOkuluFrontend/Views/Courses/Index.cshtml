@@ -1,0 +1,346 @@
+﻿@using YazOkuluFrontend.Models.Response
+@model List<CourseItem>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+<div x-data="courseApp()" x-init="init()" class="p-6">
+
+   
+    <div class="flex items-center space-x-3 mb-4">
+        <h2 class="text-2xl font-semibold flex items-center space-x-2">
+            <i class="bi bi-journal-bookmark text-gray-600 text-2xl"></i>
+            <span>Yaz Okulu Dersleri</span>
+        </h2>
+
+        <button id="addCourseBtn" class="w-6 h-6 mt-1 flex items-center justify-center rounded-full bg-gradient-to-r from-gray-400 to-gray-700 text-white hover:from-gray-500 hover:to-gray-500 transition"
+                x-on:click="openAddModal()"
+                title="Ders Ekle">
+            <i class="bi bi-plus text-xl"></i>
+        </button>
+    </div>
+
+  
+    <div class="overflow-x-auto mt-4">
+        <table class="min-w-full bg-white shadow rounded-lg">
+            <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="px-4 py-2 text-left">Kod</th>
+                    <th class="px-4 py-2 text-left">Ders Adı</th>
+                    <th class="px-4 py-2 text-left">Kontenjan</th>
+                    <th class="px-4 py-2 text-left">Fakülte</th>
+                    <th class="px-4 py-2 text-left">Bölüm</th>
+                    <th class="px-4 py-2 text-left" x-show="userRole !== null">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <template x-for="course in courses" :key="course.courseID">
+                    <tr>
+                        <td class="px-4 py-2" x-text="course.code"></td>
+                        <td class="px-4 py-2" x-text="course.name"></td>
+                        <td class="px-4 py-2" x-text="course.currentQuota + '/' + course.quota"></td>
+                        <td class="px-4 py-2" x-text="course.facultyName"></td>
+                        <td class="px-4 py-2" x-text="course.departmentName"></td>
+                        <td x-show="userRole !== null" class="px-4 py-2 flex space-x-2">
+
+                          
+                            <template x-if="getApplication(course.courseID) && course.currentQuota < course.quota">
+                                <button class="px-2 py-1 bg-gray-400 text-white rounded cursor-default"
+                                        style="cursor: default !important;">
+                                    Başvuruldu
+                                </button>
+                            </template>
+
+                           
+                            <template x-if="course.currentQuota >= course.quota">
+                                <button class="px-2 py-1 bg-red-600 text-white rounded cursor-default"
+                                        style="cursor: default !important;">
+                                    Doldu!
+                                </button>
+                            </template>
+
+                           
+                            <template x-if="(!getApplication(course.courseID)) && (course.currentQuota < course.quota)">
+                                <button class="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700"
+                                        x-on:click="applyCourse(course)">
+                                    Başvur
+                                </button>
+                            </template>
+
+
+                            <button x-show="userRole === ROLE_ADMIN.toString()" class="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700"
+                                    x-on:click="editCourse(course)">
+                                Güncelle
+                            </button>
+                            <button x-show="userRole === ROLE_ADMIN.toString()" class="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                                    x-on:click="deleteCourse(course.courseID)">
+                                Sil
+                            </button>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+    </div>
+
+   
+    <div x-show="modalOpen"
+         x-transition.opacity
+         x-on:click.away="closeModal()"
+         class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div x-show="modalOpen" x-transition.scale class="bg-white rounded-lg shadow-lg w-96 p-6 relative">
+
+            <button x-on:click="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-800">
+                <i class="bi bi-x-lg text-xl"></i>
+            </button>
+
+            <h3 class="text-xl font-semibold mb-4" x-text="modalTitle"></h3>
+
+            <form x-on:submit.prevent="saveCourse()" class="space-y-3">
+                <div>
+                    <label class="block text-gray-700">Ders Kodu</label>
+                    <input type="text" x-model="currentCourse.code" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300" required />
+                </div>
+
+                <div>
+                    <label class="block text-gray-700">Ders Adı</label>
+                    <input type="text" x-model="currentCourse.name" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300" required />
+                </div>
+
+                <div>
+                    <label class="block text-gray-700">Kontenjan</label>
+                    <input type="number" x-model="currentCourse.quota" min="1" class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300" required />
+                </div>
+
+                <div>
+                    <label class="block text-gray-700">Fakülte</label>
+                    <select x-model="currentCourse.facultyID"
+                            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300">
+                        <option value="">Seçiniz</option>
+                        <template x-for="f in faculties" :key="f.parameterID">
+                            <option :value="f.parameterID" x-text="f.description"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-gray-700">Bölüm</label>
+                    <select x-model="currentCourse.departmentID"
+                            class="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:ring-green-300">
+                        <option value="">Seçiniz</option>
+                        <template x-for="d in departments" :key="d.parameterID">
+                            <option :value="d.parameterID" x-text="d.description"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="flex justify-end space-x-2 mt-4">
+                    <button type="button" x-on:click="closeModal()" class="px-3 py-1 rounded bg-gray-300 hover:bg-gray-400 transition">İptal</button>
+                    <button type="submit" class="px-3 py-1 rounded bg-green-600 text-white hover:bg-green-700 transition">Kaydet</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    function courseApp() {
+        return {
+            courses: [],
+            faculties: [],
+            departments: [],
+            modalOpen: false,
+            modalTitle: '',
+            currentCourse: {},
+            userRole: null,
+            userId: null,
+            appliedCourses: [], 
+
+            init() {
+                this.loadUserRole();
+                this.fetchCourses();
+                this.fetchFaculties();
+                this.fetchDepartments();
+                this.fetchMyApplications();
+            },
+
+            loadUserRole() {
+                const token = localStorage.getItem("Token");
+                const ROLE_ADMIN = 9;
+                if (!token) {
+                    this.userRole = null;
+                    return;
+                }
+                try {
+                    const payload = JSON.parse(atob(token.split('.')[1]));
+                    this.userRole = payload["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"];
+                    this.userId = parseInt(payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"]);
+                } catch (e) {
+                    this.userRole = null;
+                    this.userId = null;
+                }
+            },
+
+            fetchCourses() {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                fetch('http://localhost:5273/api/courses', {
+                        headers: {
+                            "Authorization": `Bearer ${token}`
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.courses = (data.resultObject?.searchResult) || [];
+                    });
+            },
+
+            fetchFaculties() {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                fetch('http://localhost:5273/api/courses/get-parameter?ParentParameterID=4', {
+                        headers: {
+                            "Authorization": `Bearer ${token}`
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.faculties = (data.resultObject?.searchResult) || [];
+                    });
+            },
+
+            fetchDepartments() {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                fetch('http://localhost:5273/api/courses/get-parameter?ParentParameterID=16', {
+                        headers: {
+                            "Authorization": `Bearer ${token}`
+                        }
+                    })
+                    .then(r => r.json())
+                    .then(data => {
+                        this.departments = (data.resultObject?.searchResult) || [];
+                    });
+            },
+
+            fetchMyApplications() {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                fetch(`http://localhost:5273/api/me/applications?UserID=${this.userId}`, {
+                    headers: { "Authorization": `Bearer ${token}` }
+                })
+                .then(r => r.json())
+                .then(res => {
+                    this.appliedCourses = res.resultObject?.searchResult || [];
+                });
+            },
+
+            getApplication(courseId) {
+                return this.appliedCourses.find(x => x.courseID === courseId);
+            },
+
+            openAddModal() {
+                this.modalTitle = 'Yeni Ders Ekle';
+                this.currentCourse = { code: '', name: '', quota: '', facultyID: '', departmentID: '' };
+                this.modalOpen = true;
+            },
+
+            editCourse(course) {
+                this.modalTitle = 'Ders Güncelle';
+                this.currentCourse = Object.assign({}, course);
+                this.modalOpen = true;
+            },
+
+            closeModal() {
+                this.modalOpen = false;
+            },
+
+            saveCourse() {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                fetch('http://localhost:5273/api/courses', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json',
+                                "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(this.currentCourse)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.isSuccess !== false) {
+                        this.fetchCourses();
+                        showToast("Kurs başarıyla eklendi.", "success");
+                        this.closeModal();
+                    } else {
+                        alert(res.message || 'Hata oluştu.');
+                    }
+                });
+            },
+
+            deleteCourse(id) {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) return;
+
+                if (!confirm('Silmek istediğinize emin misiniz?')) return;
+                fetch(`http://localhost:5273/api/courses/${id}`, { 
+                        method: 'DELETE', 
+                        headers: {
+                                "Content-Type": "application/json",
+                                "Authorization": `Bearer ${token}`
+                        }})
+                        .then(r => r.json())
+                        .then(res => {
+                        if (res.isSuccess !== false) {
+                            this.fetchCourses();
+                            showToast("Kurs başarıyla silindi.", "success");
+                        } else {
+                            showToast(res.message || 'Silme hatası.', "error");
+                        }
+                    });
+            },
+
+            applyCourse(course) {
+                const token = localStorage.getItem("Token");
+                if (!token || !this.userId) {
+                    alert("Giriş yapmanız gerekiyor.");
+                    return;
+                }
+
+                const body = {
+                    userID: this.userId,
+                    courseID: course.courseID,
+                    statusID: 18
+                };
+
+                fetch("http://localhost:5273/api/course-applications", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                    },
+                    body: JSON.stringify(body)
+                })
+                .then(r => r.json())
+                .then(res => {
+                    if (res.isSuccess !== false) {
+                        showToast("Başvuru başarıyla alındı.", "success");
+                        this.appliedCourses.push({
+                            courseID: course.courseID,
+                            status: "Başvuruldu"
+                        });
+                    } else {
+                        showToast(res.message || "Başvuru sırasında hata oluştu.", "error");
+                    }
+                })
+                .catch(() => {
+                    showToast("Sunucu hatası!", "error");
+                });
+            }
+        }
+    }
+</script>

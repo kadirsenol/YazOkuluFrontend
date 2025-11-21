@@ -1,0 +1,236 @@
+﻿@using YazOkuluFrontend.Models.Response
+@model List<ApplicationListItem>
+
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+
+<div x-data="courseApplicationsApp()" x-init="init()" class="p-6">
+
+    <h2 class="text-2xl font-semibold mb-4 flex items-center space-x-2">
+        <i class="bi bi-clipboard-data text-gray-600 text-2xl"></i>
+        <span>Ders Başvuruları</span>
+
+        
+        <div class="relative inline-block text-left ms-3" x-data="{ open: false }">
+            <button type="button"
+                    class="inline-flex justify-center w-full rounded-md border border-gray-300 shadow-sm px-3 py-1 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none"
+                    x-on:click="open = !open">
+                <span x-text="selectedCourseName || 'Ders Seç'"></span>
+                <i class="bi bi-caret-down-fill ml-1"></i>
+            </button>
+
+            <div class="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-white ring-1 ring-black ring-opacity-5"
+                 x-show="open" x-on:click.away="open = false" x-transition>
+                <div class="py-1 max-h-60 overflow-auto">
+                    <template x-for="course in courses" :key="course.courseID">
+                        <button class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                                x-text="course.name"
+                                x-on:click="selectCourse(course)">
+                        </button>
+                    </template>
+                    <template x-if="courses.length === 0">
+                        <span class="block px-4 py-2 text-sm text-gray-500">Ders yok</span>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </h2>
+
+    <div class="overflow-x-auto mt-4">
+        <table class="min-w-full bg-white shadow rounded-lg">
+            <thead class="bg-gray-800 text-white">
+                <tr>
+                    <th class="px-4 py-2">Öğrenci Adı</th>
+                    <th class="px-4 py-2">GSM</th>
+                    <th class="px-4 py-2">Ders Kodu</th>
+                    <th class="px-4 py-2">Ders Adı</th>
+                    <th class="px-4 py-2">Durum</th>
+                    <th class="px-4 py-2">İşlem</th> 
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+                <template x-for="app in applications" :key="app.applicationID">
+                    <tr>
+                        <td class="px-4 py-2" x-text="app.userName"></td>
+                        <td class="px-4 py-2" x-text="app.userGsm"></td>
+                        <td class="px-4 py-2" x-text="app.courseCode"></td>
+                        <td class="px-4 py-2" x-text="app.courseName"></td>
+                        <td class="px-4 py-2" x-text="app.status"></td>
+                        <td class="px-4 py-2 flex items-center gap-2">
+
+                          
+                            <template x-if="app.status === 'Onay Bekliyor'">
+                                <div class="flex items-center gap-2">
+                                    
+                                    <button class="p-1 rounded border hover:bg-green-50"
+                                            :class="{'opacity-50 cursor-not-allowed': app.isProcessing}"
+                                            :disabled="app.isProcessing"
+                                            x-on:click="changeStatus(app, 19)"
+                                            title="Onayla">
+                                        <i class="bi bi-check-lg text-green-600"></i>
+                                    </button>
+
+                                   
+                                    <button class="p-1 rounded border hover:bg-red-50"
+                                            :class="{'opacity-50 cursor-not-allowed': app.isProcessing}"
+                                            :disabled="app.isProcessing"
+                                            x-on:click="changeStatus(app, 20)"
+                                            title="Reddet">
+                                        <i class="bi bi-x-lg text-red-600"></i>
+                                    </button>
+                                </div>
+                            </template>
+
+                            
+                            <template x-if="app.status === 'Onaylandı'">
+                                <button class="p-1 rounded border hover:bg-red-50"
+                                        :class="{'opacity-50 cursor-not-allowed': app.isProcessing}"
+                                        :disabled="app.isProcessing"
+                                        x-on:click="changeStatus(app, 20)"
+                                        title="Reddet">
+                                    <i class="bi bi-x-lg text-red-600"></i>
+                                </button>
+                            </template>
+
+                           
+                            <template x-if="app.status === 'Reddedildi'">
+                                <button class="p-1 rounded border hover:bg-green-50"
+                                        :class="{'opacity-50 cursor-not-allowed': app.isProcessing}"
+                                        :disabled="app.isProcessing"
+                                        x-on:click="changeStatus(app, 19)"
+                                        title="Onayla">
+                                    <i class="bi bi-check-lg text-green-600"></i>
+                                </button>
+                            </template>
+
+                        </td>
+                    </tr>
+                </template>
+
+                <tr x-show="applications.length === 0">
+                    <td colspan="6" class="px-4 py-2 text-center text-gray-500">Henüz başvuru yok.</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    function courseApplicationsApp() {
+        return {
+            courses: [],
+            applications: [],
+            selectedCourseId: null,
+            selectedCourseName: null,
+
+            init() {
+                this.fetchCourses();
+            },
+
+            selectCourse(course) {
+                this.selectedCourseId = course.courseID;
+                this.selectedCourseName = course.name;
+                this.fetchApplicationsByCourse();
+            },
+
+            fetchCourses() {
+                const token = localStorage.getItem("Token");
+
+                fetch("http://localhost:5273/api/courses", {
+                    method: "GET",
+                    headers: {
+                        "Authorization": token ? `Bearer ${token}` : ""
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error("Dersler alınamadı");
+                    return res.json();
+                })
+                .then(data => {
+                    this.courses = data.resultObject?.searchResult || [];
+                })
+                .catch(err => {
+                    console.error(err);
+                    
+                    if (typeof showToast === 'function') showToast("Dersler yüklenemedi.", "error");
+                    else console.warn("Dersler yüklenemedi.");
+                });
+            },
+
+            fetchApplicationsByCourse() {
+                if (!this.selectedCourseId) return;
+                const token = localStorage.getItem("Token");
+
+                fetch(`http://localhost:5273/api/courses/${this.selectedCourseId}/applications`, {
+                    method: "GET",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": token ? `Bearer ${token}` : ""
+                    }
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error("Başvurular alınamadı");
+                    return res.json();
+                })
+                .then(data => {
+                    
+                    const items = data.resultObject?.searchResult || [];
+                    this.applications = items.map(i => ({ ...i, isProcessing: false }));
+                })
+                .catch(err => {
+                    console.error("Başvurular alınamadı:", err);
+                    if (typeof showToast === 'function') showToast("Başvurular yüklenemedi.", "error");
+                });
+            },
+
+
+            changeStatus(app, statusID) {
+                if (!app || !app.applicationID) return;
+                const token = localStorage.getItem("Token");
+                const appID = app.applicationID;
+
+               
+                app.isProcessing = true;
+
+                
+                const url = `http://localhost:5273/api/course-applications/${appID}/status?statusID=${statusID}`;
+
+                fetch(url, {
+                    method: "PUT",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": token ? `Bearer ${token}` : ""
+                    }
+                })
+                .then(res => res.json ? res.json() : Promise.resolve(res))
+                .then(result => {
+                    if (result && result.isSuccess !== false) {
+                        if (result.resultObject?.detail?.status) {
+                            app.status = result.resultObject.detail.status;
+                        } else {
+                            app.status = (statusID === 19) ? "Onaylandı" : "Reddedildi";
+                        }
+
+                        if (typeof showToast === 'function') {
+                            showToast((statusID === 19 ? "Başvuru onaylandı." : "Başvuru reddedildi."), "success");
+                        } else {
+                            console.log((statusID === 19 ? "Başvuru onaylandı." : "Başvuru reddedildi."));
+                        }
+                    } else {
+                        const msg = (result && result.message) ? result.message : "İşlem başarısız.";
+                        if (typeof showToast === 'function') showToast(msg, "error");
+                        else alert(msg);
+                    }
+                })
+                .catch(err => {
+                    console.error("Status değiştirilemedi:", err);
+                    if (typeof showToast === 'function') showToast("Sunucu hatası!", "error");
+                    else alert("Sunucu hatası!");
+                })
+                .finally(() => {
+                    app.isProcessing = false;
+                });
+            }
+        }
+    }
+</script>
