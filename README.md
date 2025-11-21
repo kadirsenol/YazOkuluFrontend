@@ -20,4 +20,8 @@
 3. ...\YazOkuluFrontend\YazOkuluFrontend>
 4. dotnet run
 
+## Admin Kullanıcı Adı ve Şifre Bilgileri
+1.     Kullanıcı Adı: "admin"
+2.     Şifre: "123"
+
 ## İşlemlerden öncesinde Sql Server veritabanı oluşturulmuş olması gerekir. Bunun için "YazOkuluDB" repository de ki ilgili README dosyasını okuyunuz.
