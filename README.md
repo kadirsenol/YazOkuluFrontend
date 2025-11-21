@@ -1,4 +1,4 @@
-# Frontend Proje (.Net Core MVC(Razor View) ) - README
+# Frontend Proje (.Net Core MVC(Razor View)) - README
 
 ## Ön Koşullar
 - .NET 8.0 SDK
